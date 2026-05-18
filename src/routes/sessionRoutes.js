@@ -12,18 +12,21 @@ import {
 
 const router = express.Router();
 
-// 1. Rutas Base (Listar todo / Filtro y Crear)
-router.get('/', getAllSessions);
-router.post('/', createSession);
+// 1. Rutas de funciones analíticas (¡SIEMPRE ARRIBA DEL TODO!)
+// Como en tu app.js pusiste '/api', la URL real será: /api/study-sessions/features/stats
+router.get('/study-sessions/features/stats', getSessionStats);
+router.get('/study-sessions/features/sort', getSortedSessions);
+router.delete('/study-sessions/features/clear', clearAllSessions);
 
-// 2. Rutas de Funciones Avanzadas (¡DEBEN IR ANTES DE :id!)
-router.get('/features/stats', getSessionStats);  // <-- Cambiado a getSessionStats
-router.get('/features/sort', getSortedSessions);
-router.delete('/features/clear', clearAllSessions);
+// 2. Rutas Base (Listar todo / Filtro de materias y Crear)
+// URL real: /api/study-sessions
+router.get('/study-sessions', getAllSessions);
+router.post('/study-sessions', createSession);
 
-// 3. Rutas con Parámetro Dinámico :id (Al final del archivo)
-router.get('/:id', getSessionById);
-router.put('/:id', updateSession);
-router.delete('/:id', deleteSession);
+// 3. Rutas con parámetro dinámico :id (AL FINAL DEL ARCHIVO)
+// URL real: /api/study-sessions/:id
+router.get('/study-sessions/:id', getSessionById);
+router.put('/study-sessions/:id', updateSession);
+router.delete('/study-sessions/:id', deleteSession);
 
 export default router;
