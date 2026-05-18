@@ -4,22 +4,25 @@ Esta es una API REST desarrollada con **Node.js** y **Express** bajo el patrón 
 
 ## 📁 Estructura del Proyecto (MVC)
 - `src/models/`: Simulación de persistencia de datos en memoria (Arreglos).
-- `src/controllers/`: Lógica del negocio y control de estados HTTP.
+- `src/controllers/`: Lógica del negocio, analíticas de datos y control de estados HTTP.
 - `src/routes/`: Definición y mapeo de los endpoints de la API.
 - `src/app.js`: Servidor principal y middleware global de errores.
 
-## 🚀 Endpoints de la API (CRUD)
+## 🚀 Endpoints de la API (CRUD Avanzado y Métricas)
 
-La API maneja la entidad `study-sessions` utilizando la ruta base `/api/study-sessions`.
+La API maneja la entidad `study-sessions` utilizando la ruta base `/api/study-sessions`. Cuenta con **9 flujos y comportamientos lógicos** para el nivel Estratégico:
 
 | Verbo  | Ruta | Función | Status OK |
 | :--- | :--- | :--- | :--- |
 | **GET** | `/api/study-sessions` | Listar todas las sesiones de estudio | `200 OK` |
-| **GET** | `/api/study-sessions?materia=valor` | **(Estratégico)** Filtrar sesiones por nombre de materia | `200 OK` |
-| **GET** | `/api/study-sessions/:id` | Obtener una sesión específica por su ID | `200 OK / 404 Not Found` |
-| **POST** | `/api/study-sessions` | Crear una nueva sesión de estudio | `201 Created` |
-| **PUT** | `/api/study-sessions/:id` | Actualizar los datos completos de una sesión | `200 OK / 404 Not Found` |
-| **DELETE** | `/api/study-sessions/:id` | Eliminar una sesión del registro | `200 OK / 404 Not Found` |
+| **GET** | `/api/study-sessions?materia=valor` | **(Estratégico)** Filtrar sesiones por coincidencia de materia | `200 OK` |
+| **GET** | `/api/study-sessions/features/stats` | **(Estratégico)** Obtener métricas y estadísticas del sistema | `200 OK` |
+| **GET** | `/api/study-sessions/features/sort` | **(Estratégico)** Listar sesiones ordenadas por fecha de forma cronológica | `200 OK` |
+| **GET** | `/api/study-sessions/:id` | Obtener una sesión específica por su ID | `200 OK / 404` |
+| **POST** | `/api/study-sessions` | Crear una nueva sesión de estudio con validación | `201 Created` |
+| **PUT** | `/api/study-sessions/:id` | Actualizar los datos completos de una sesión por ID | `200 OK / 404` |
+| **DELETE** | `/api/study-sessions/:id` | Eliminar una sesión del registro por su ID | `200 OK / 404` |
+| **DELETE** | `/api/study-sessions/features/clean` | **(Estratégico)** Resetear la memoria interna (Vaciado masivo) | `200 OK` |
 
 ## 🛡️ Manejo de Errores e Integridad
 - **400 Bad Request:** Si en las peticiones `POST` faltan campos obligatorios (`materia`, `fecha` o `hora`), la API responde detallando explícitamente qué campos faltan.

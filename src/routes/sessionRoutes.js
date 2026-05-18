@@ -1,19 +1,29 @@
-import { Router } from 'express';
+import express from 'express';
 import { 
     getAllSessions, 
     getSessionById, 
     createSession, 
     updateSession, 
-    deleteSession 
+    deleteSession,
+    getSessionStats,
+    getSortedSessions,
+    clearAllSessions
 } from '../controllers/sessionController.js';
 
-const router = Router();
+const router = express.Router();
 
-// Mapeo de rutas según la tabla de la tarea
-router.get('/study-sessions', getAllSessions);          // Listar todos
-router.get('/study-sessions/:id', getSessionById);      // Obtener uno por ID
-router.post('/study-sessions', createSession);          // Crear nuevo
-router.put('/study-sessions/:id', updateSession);       // Actualizar completo
-router.delete('/study-sessions/:id', deleteSession);    // Eliminar
+// Rutas base y de filtros
+router.get('/', getAllSessions);
+
+// Rutas de características avanzadas (Nuevas)
+router.get('/features/stats', getSessionStats);
+router.get('/features/sort', getSortedSessions);
+router.delete('/features/clean', clearAllSessions);
+
+// Rutas con parámetros por ID (Siempre van abajo)
+router.get('/:id', getSessionById);
+router.post('/', createSession);
+router.put('/:id', updateSession);
+router.delete('/:id', deleteSession);
 
 export default router;

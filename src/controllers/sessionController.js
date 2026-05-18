@@ -1,42 +1,31 @@
 import sessions from '../models/sessionModel.js';
 
-// ==========================================
 // 1. [GET] Listar registros / Filtrar por materia
-// ==========================================
-// NIVEL ESTRATÉGICO: Soporta Query Parameters (?materia=valor)
 export const getAllSessions = (req, res, next) => {
     try {
         const { materia } = req.query;
-        
-        // Si el docente envía un término de búsqueda en la URL
         if (materia) {
             const filteredSessions = sessions.filter(s => 
                 s.materia.toLowerCase().includes(materia.toLowerCase())
             );
             return res.status(200).json(filteredSessions);
         }
-
-        // Comportamiento normal: si no hay filtros, devuelve todo el arreglo
         res.status(200).json(sessions);
     } catch (error) {
-        next(error); // Envía el error inesperado al middleware global
+        next(error);
     }
 };
 
-// ==========================================
 // 2. [GET] Obtener un registro por ID
-// ==========================================
-// Manejo de Error 404 si el recurso no existe
 export const getSessionById = (req, res, next) => {
     try {
         const id = parseInt(req.params.id);
         const session = sessions.find(s => s.id === id);
 
-        // RÚBRICA: Si el ID no se encuentra -> responder con 404
         if (!session) {
             return res.status(404).json({ 
                 error: "Not Found",
-                message: `La sesión de estudio con el ID ${id} no existe en el sistema.` 
+                message: `La sesión de estudio con el ID ${id} no existe.` 
             });
         }
         res.status(200).json(session);
@@ -45,15 +34,10 @@ export const getSessionById = (req, res, next) => {
     }
 };
 
-// ==========================================
 // 3. [POST] Crear un registro nuevo
-// ==========================================
-// Manejo de Error 400 para validación de campos obligatorios
 export const createSession = (req, res, next) => {
     try {
         const { materia, fecha, hora, enlace } = req.body;
-
-        // RÚBRICA: Validar qué campos obligatorios faltan en la petición
         const missingFields = [];
         if (!materia) missingFields.push("materia");
         if (!fecha) missingFields.push("fecha");
@@ -62,11 +46,10 @@ export const createSession = (req, res, next) => {
         if (missingFields.length > 0) {
             return res.status(400).json({
                 error: "Bad Request",
-                message: `Faltan campos obligatorios para crear la sesión: ${missingFields.join(', ')}`
+                message: `Faltan campos obligatorios: ${missingFields.join(', ')}`
             });
         }
 
-        // Creación del nuevo objeto con ID autoincremental
         const newSession = {
             id: sessions.length > 0 ? sessions[sessions.length - 1].id + 1 : 1,
             materia,
@@ -82,9 +65,7 @@ export const createSession = (req, res, next) => {
     }
 };
 
-// ==========================================
 // 4. [PUT] Actualizar un registro completo
-// ==========================================
 export const updateSession = (req, res, next) => {
     try {
         const id = parseInt(req.params.id);
@@ -93,13 +74,11 @@ export const updateSession = (req, res, next) => {
         if (index === -1) {
             return res.status(404).json({ 
                 error: "Not Found",
-                message: `No se encontró la sesión con ID ${id} para poder actualizarla.` 
+                message: `No se encontró la sesión con ID ${id} para actualizarla.` 
             });
         }
 
         const { materia, fecha, hora, enlace } = req.body;
-
-        // Reemplaza los datos manteniendo el ID original
         sessions[index] = {
             id,
             materia: materia || sessions[index].materia,
@@ -114,9 +93,7 @@ export const updateSession = (req, res, next) => {
     }
 };
 
-// ==========================================
 // 5. [DELETE] Eliminar un registro
-// ==========================================
 export const deleteSession = (req, res, next) => {
     try {
         const id = parseInt(req.params.id);
@@ -125,13 +102,58 @@ export const deleteSession = (req, res, next) => {
         if (index === -1) {
             return res.status(404).json({ 
                 error: "Not Found",
-                message: `No se encontró la sesión con ID ${id} para poder eliminarla.` 
+                message: `No se encontró la sesión con ID ${id} para eliminarla.` 
             });
         }
 
-        // Remueve el elemento del arreglo de memoria
         const deletedSession = sessions.splice(index, 1);
         res.status(200).json({ message: "Sesión eliminada con éxito", data: deletedSession[0] });
+    } catch (error) {
+        next(error);
+    }
+};
+
+// ==========================================
+// NUEVOS ENDPOINTS PARA LLEGAR A 9
+// ==========================================
+
+// 6. [GET] Estadísticas generales de la API
+export const getSessionStats = (req, res, next) => {
+    try {
+        const totalSesiones = sessions.length;
+        // Contar materias únicas registradas
+        const materiasUnicas = [...new Set(sessions.map(s => s.materia))].length;
+
+        res.status(200).json({
+            estado: "Exitoso",
+            metricas: {
+                total_sesiones_programadas: totalSesiones,
+                total_materias_distintas: materiasUnicas,
+                servidor_status: "Online"
+            }
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+// 7. [GET] Listar sesiones ordenadas por fecha (De la más cercana a la más lejana)
+export const getSortedSessions = (req, res, next) => {
+    try {
+        const sorted = [...sessions].sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
+        res.status(200).json(sorted);
+    } catch (error) {
+        next(error);
+    }
+};
+
+// 8. [DELETE] Resetear / Vaciar toda la base de datos temporal
+export const clearAllSessions = (req, res, next) => {
+    try {
+        sessions.length = 0; // Vacía el arreglo original por completo
+        res.status(200).json({ 
+            message: "Base de datos temporal reseteada. Todas las sesiones han sido eliminadas." 
+        });
     } catch (error) {
         next(error);
     }
