@@ -1,28 +1,28 @@
 import express from 'express';
 import { 
     getAllSessions, 
-    getSessionById, 
     createSession, 
+    getSessionStats, 
+    getSortedSessions, 
+    clearAllSessions, 
+    getSessionById, 
     updateSession, 
-    deleteSession,
-    getSessionStats,
-    getSortedSessions,
-    clearAllSessions
+    deleteSession 
 } from '../controllers/sessionController.js';
 
 const router = express.Router();
 
-// Rutas base y de filtros
+// 1. Rutas Base (Listar todo / Filtro y Crear)
 router.get('/', getAllSessions);
-
-// Rutas de características avanzadas (Nuevas)
-router.get('/features/stats', getSessionStats);
-router.get('/features/sort', getSortedSessions);
-router.delete('/features/clean', clearAllSessions);
-
-// Rutas con parámetros por ID (Siempre van abajo)
-router.get('/:id', getSessionById);
 router.post('/', createSession);
+
+// 2. Rutas de Funciones Avanzadas (¡DEBEN IR ANTES DE :id!)
+router.get('/features/stats', getSessionStats);  // <-- Cambiado a getSessionStats
+router.get('/features/sort', getSortedSessions);
+router.delete('/features/clear', clearAllSessions);
+
+// 3. Rutas con Parámetro Dinámico :id (Al final del archivo)
+router.get('/:id', getSessionById);
 router.put('/:id', updateSession);
 router.delete('/:id', deleteSession);
 
