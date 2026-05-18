@@ -1,21 +1,38 @@
 import sessions from '../models/sessionModel.js';
 
-// [GET] Listar todos los registros
+// ==========================================
+// 1. [GET] Listar registros / Filtrar por materia
+// ==========================================
+// NIVEL ESTRATÉGICO: Soporta Query Parameters (?materia=valor)
 export const getAllSessions = (req, res, next) => {
     try {
+        const { materia } = req.query;
+        
+        // Si el docente envía un término de búsqueda en la URL
+        if (materia) {
+            const filteredSessions = sessions.filter(s => 
+                s.materia.toLowerCase().includes(materia.toLowerCase())
+            );
+            return res.status(200).json(filteredSessions);
+        }
+
+        // Comportamiento normal: si no hay filtros, devuelve todo el arreglo
         res.status(200).json(sessions);
     } catch (error) {
         next(error); // Envía el error inesperado al middleware global
     }
 };
 
-// [GET] Obtener uno por ID -> Manejo de Error 404
+// ==========================================
+// 2. [GET] Obtener un registro por ID
+// ==========================================
+// Manejo de Error 404 si el recurso no existe
 export const getSessionById = (req, res, next) => {
     try {
         const id = parseInt(req.params.id);
         const session = sessions.find(s => s.id === id);
 
-        // RÚBRICA: Si el ID no existe -> responder con 404
+        // RÚBRICA: Si el ID no se encuentra -> responder con 404
         if (!session) {
             return res.status(404).json({ 
                 error: "Not Found",
@@ -28,12 +45,15 @@ export const getSessionById = (req, res, next) => {
     }
 };
 
-// [POST] Crear un registro nuevo -> Manejo de Error 400
+// ==========================================
+// 3. [POST] Crear un registro nuevo
+// ==========================================
+// Manejo de Error 400 para validación de campos obligatorios
 export const createSession = (req, res, next) => {
     try {
         const { materia, fecha, hora, enlace } = req.body;
 
-        // RÚBRICA: Si faltan campos obligatorios -> responder con 400 y qué campo falta
+        // RÚBRICA: Validar qué campos obligatorios faltan en la petición
         const missingFields = [];
         if (!materia) missingFields.push("materia");
         if (!fecha) missingFields.push("fecha");
@@ -46,6 +66,7 @@ export const createSession = (req, res, next) => {
             });
         }
 
+        // Creación del nuevo objeto con ID autoincremental
         const newSession = {
             id: sessions.length > 0 ? sessions[sessions.length - 1].id + 1 : 1,
             materia,
@@ -61,7 +82,9 @@ export const createSession = (req, res, next) => {
     }
 };
 
-// [PUT] Actualizar un registro completo
+// ==========================================
+// 4. [PUT] Actualizar un registro completo
+// ==========================================
 export const updateSession = (req, res, next) => {
     try {
         const id = parseInt(req.params.id);
@@ -76,6 +99,7 @@ export const updateSession = (req, res, next) => {
 
         const { materia, fecha, hora, enlace } = req.body;
 
+        // Reemplaza los datos manteniendo el ID original
         sessions[index] = {
             id,
             materia: materia || sessions[index].materia,
@@ -90,7 +114,9 @@ export const updateSession = (req, res, next) => {
     }
 };
 
-// [DELETE] Eliminar un registro
+// ==========================================
+// 5. [DELETE] Eliminar un registro
+// ==========================================
 export const deleteSession = (req, res, next) => {
     try {
         const id = parseInt(req.params.id);
@@ -103,6 +129,7 @@ export const deleteSession = (req, res, next) => {
             });
         }
 
+        // Remueve el elemento del arreglo de memoria
         const deletedSession = sessions.splice(index, 1);
         res.status(200).json({ message: "Sesión eliminada con éxito", data: deletedSession[0] });
     } catch (error) {

@@ -15,6 +15,7 @@ La API maneja la entidad `study-sessions` utilizando la ruta base `/api/study-se
 | Verbo  | Ruta | Función | Status OK |
 | :--- | :--- | :--- | :--- |
 | **GET** | `/api/study-sessions` | Listar todas las sesiones de estudio | `200 OK` |
+| **GET** | `/api/study-sessions?materia=valor` | **(Estratégico)** Filtrar sesiones por nombre de materia | `200 OK` |
 | **GET** | `/api/study-sessions/:id` | Obtener una sesión específica por su ID | `200 OK / 404 Not Found` |
 | **POST** | `/api/study-sessions` | Crear una nueva sesión de estudio | `201 Created` |
 | **PUT** | `/api/study-sessions/:id` | Actualizar los datos completos de una sesión | `200 OK / 404 Not Found` |
