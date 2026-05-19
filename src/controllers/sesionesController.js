@@ -49,7 +49,8 @@ const crear = async (req, res) => {
     materia: materia || 'General',
     fechaHora: fechaHora || new Date().toISOString(),
     completada: false,
-    creadaEn: new Date().toISOString()
+    creadaEn: new Date().toISOString(),
+    participantes: [] // Inicializamos la lista de participantes vacía
   };
 
   sesiones.push(nuevaSesion);
@@ -92,4 +93,63 @@ const eliminar = async (req, res) => {
   res.json({ ok: true, mensaje: `Sesión ${id} eliminada correctamente` });
 };
 
-module.exports = { listar, obtenerUna, crear, actualizar, eliminar };
+// ── GET /api/sesiones/materia/:materia ────────────────────────────────────────
+// 6. AVANZADO: Filtra y devuelve las sesiones por una materia específica
+const filtrarPorMateria = async (req, res) => {
+  const materiaBuscada = req.params.materia.toLowerCase();
+  const filtradas = sesiones.filter(s => s.materia.toLowerCase() === materiaBuscada);
+
+  res.json({
+    ok: true,
+    total: filtradas.length,
+    materia: req.params.materia,
+    datos: filtradas
+  });
+};
+
+// ── POST /api/sesiones/:id/unirse ─────────────────────────────────────────────
+// 7. AVANZADO: Agrega un estudiante al arreglo de participantes de una sesión
+const unirseSesion = async (req, res) => {
+  const id = parseInt(req.params.id);
+  const { estudiante } = req.body;
+
+  // Validación: requerir el nombre del estudiante en el body
+  if (!estudiante || estudiante.trim() === '') {
+    return res.status(400).json({ error: 'El campo estudiante es obligatorio en el body' });
+  }
+
+  const sesion = sesiones.find(s => s.id === id);
+
+  if (!sesion) {
+    return res.status(404).json({ error: `Sesión ${id} no encontrada` });
+  }
+
+  // Asegurar que exista el arreglo de participantes por si fue creada sin él
+  if (!sesion.participantes) {
+    sesion.participantes = [];
+  }
+
+  // Evitar duplicados (opcional, por si el estudiante ya se unió)
+  if (sesion.participantes.includes(estudiante.trim())) {
+    return res.status(400).json({ error: `El estudiante ya está inscrito en esta sesión` });
+  }
+
+  sesion.participantes.push(estudiante.trim());
+
+  res.json({
+    ok: true,
+    mensaje: `Estudiante ${estudiante.trim()} unido con éxito a la sesión ${id}`,
+    datos: sesion
+  });
+};
+
+// Exportación limpia incluyendo las 2 funciones nuevas al final
+module.exports = { 
+  listar, 
+  obtenerUna, 
+  crear, 
+  actualizar, 
+  eliminar, 
+  filtrarPorMateria, 
+  unirseSesion 
+};
