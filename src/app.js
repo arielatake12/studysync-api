@@ -1,34 +1,20 @@
-import express from 'express';
-import dotenv from 'dotenv';
-import sessionRoutes from './routes/sessionRoutes.js';
+const express = require('express');
+const dotenv = require('dotenv');
 
+// Cargar variables de entorno desde el archivo .env
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 3000;
 
+// Middleware obligatorio para que nuestra API entienda formato JSON
 app.use(express.json());
 
-// Rutas de la API
-app.use('/api', sessionRoutes);
-
+// Ruta de prueba inicial para verificar que la API responde
 app.get('/', (req, res) => {
-    res.send('¡API de StudySync corriendo exitosamente!');
-});
-
-// -------------------------------------------------------------
-// RÚBRICA: Middleware de manejo de errores global (Express)
-// -------------------------------------------------------------
-app.use((err, req, res, next) => {
-    console.error("💥 Error interno detectado:", err.stack);
-    
-    res.status(500).json({
-        error: "Internal Server Error",
-        message: "Ocurrió un error inesperado en el servidor de la API.",
-        details: err.message // Útil para desarrollo
+    res.status(200).json({
+        mensaje: "¡Bienvenido a la API de StudySync! El servidor está respondiendo correctamente."
     });
 });
 
-app.listen(PORT, () => {
-    console.log(`Servidor escuchando en http://localhost:${PORT}`);
-});
+// Exportamos la app para que server.js la pueda inicializar
+module.exports = app;
