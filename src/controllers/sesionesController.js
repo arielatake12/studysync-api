@@ -2,6 +2,9 @@
 // Contiene la lógica de negocio para las sesiones de estudio
 // Por ahora usa un arreglo en memoria — el Paso 11 lo migra a Supabase
 
+// ✨ NUEVO PASO 7: Importamos el cliente de publicación Redis
+const { pub } = require('../redis/client');
+
 let sesiones = []; // Base de datos temporal en memoria
 let nextId = 1; // Contador autoincrementable de IDs
 
@@ -54,6 +57,15 @@ const crear = async (req, res) => {
   };
 
   sesiones.push(nuevaSesion);
+
+  // ✨ NUEVO PASO 7.2: publicar evento en Redis DESPUÉS de guardar la sesión
+  await pub.publish('study:sesion:creada', JSON.stringify({
+    tipo: 'sesion:creada',
+    payload: nuevaSesion,
+    timestamp: new Date().toISOString()
+  }));
+  console.log('[Redis] Evento publicado: sesion:creada →', nuevaSesion.titulo);
+
   // 201 = Created: se creó un nuevo recurso exitosamente
   res.status(201).json(nuevaSesion);
 };
@@ -135,6 +147,14 @@ const unirseSesion = async (req, res) => {
   }
 
   sesion.participantes.push(estudiante.trim());
+
+  // ✨ AÑADIDO ESTRATÉGICO: Publicar evento en Redis cuando un estudiante se une
+  await pub.publish('study:usuario:unido', JSON.stringify({
+    tipo: 'usuario:unido',
+    payload: { sesionId: id, estudiante: estudiante.trim() },
+    timestamp: new Date().toISOString()
+  }));
+  console.log(`[Redis] Evento publicado: usuario:unido → ${estudiante.trim()} en sesión ${id}`);
 
   res.json({
     ok: true,
