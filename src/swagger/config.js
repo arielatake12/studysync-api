@@ -19,6 +19,10 @@ const opciones = {
       {
         url: 'http://localhost:3000',
         description: 'Desarrollo local'
+      },
+      {
+        url: 'https://studysync-api-2ah6.onrender.com', // <- Tu URL real de Render
+        description: 'Producción (Render)'
       }
     ],
     components: {
@@ -41,7 +45,7 @@ const opciones = {
         "post": {
           "summary": "3. Crear una nueva sesión de estudio",
           "tags": ["Sesiones"],
-          "security": [{ "BearerAuth": [] }], // <- ESTO ACTIVA EL CANDADO
+          "security": [{ "BearerAuth": [] }],
           "responses": { "201": { "description": "Éxito" } }
         }
       },
@@ -55,14 +59,14 @@ const opciones = {
         "put": {
           "summary": "4. Actualizar una sesión existente",
           "tags": ["Sesiones"],
-          "security": [{ "BearerAuth": [] }], // <- ESTO ACTIVA EL CANDADO
+          "security": [{ "BearerAuth": [] }],
           "parameters": [{ "in": "path", "name": "id", "required": true, "schema": { "type": "integer" } }],
           "responses": { "200": { "description": "Éxito" } }
         },
         "delete": {
           "summary": "5. Eliminar una sesión",
           "tags": ["Sesiones"],
-          "security": [{ "BearerAuth": [] }], // <- ESTO ACTIVA EL CANDADO
+          "security": [{ "BearerAuth": [] }],
           "parameters": [{ "in": "path", "name": "id", "required": true, "schema": { "type": "integer" } }],
           "responses": { "200": { "description": "Éxito" } }
         }
@@ -79,7 +83,7 @@ const opciones = {
         "post": {
           "summary": "7. Unirse a una sesión activa (Defensa Avanzado)",
           "tags": ["Sesiones Avanzadas"],
-          "security": [{ "BearerAuth": [] }], // <- ESTO ACTIVA EL CANDADO
+          "security": [{ "BearerAuth": [] }],
           "responses": { "200": { "description": "Éxito" } }
         }
       }
