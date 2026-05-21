@@ -1,43 +1,73 @@
-// src/app.js — CON SWAGGER + CORS AGREGADO
+// src/app.js — VERSIÓN FINAL COMPLETA
+// Incluye: Swagger + CORS + Rate Limiting en el orden correcto
 require('dotenv').config();
-const express = require('express');
-const app = express();
-
-// ── Swagger (Importación de la configuración) ───────────────────────────
-const swaggerUi   = require('swagger-ui-express');
+const express     = require('express');
+const cors        = require('cors');
+const rateLimit  = require('express-rate-limit');
+const swaggerUi  = require('swagger-ui-express');
 const swaggerSpec = require('./swagger/config');
 
-// ── ✨ NUEVO: CORS ────────────────────────────────────────────────
-const cors = require('cors');
+const app = express();
 
-// Configurar CORS — quién puede hacer peticiones a esta API
+// ════════════════════════════════════════════════════════════════
+// 1. CORS — DEBE ser el primer middleware
+//    Razón: el navegador verifica CORS antes de procesar la petición.
+// ════════════════════════════════════════════════════════════════
 app.use(cors({
-  // En desarrollo/pruebas locales puedes usar '*' para no renegar, 
-  // pero la guía de tu docente pide esta lista explícita para producción:
   origin: [
-    'http://localhost:5173',           // Vite en desarrollo local
-    'http://localhost:3000',           // Por si el frontend y backend corren juntos
-    'https://studysync.vercel.app',    // Frontend en producción (ajustar si tienes el tuyo)
+    'http://localhost:5173',
+    'http://localhost:3000',
+    'https://studysync.vercel.app', // URL del frontend en producción
   ],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'], // Authorization lleva tu token JWT
+  allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true
 }));
-// ─────────────────────────────────────────────────────────────────
 
-// ── MIDDLEWARES GLOBALES ──────────────────────────────────────────────────────
+// ════════════════════════════════════════════════════════════════
+// 2. RATE LIMITING — Después de CORS, antes de las rutas
+//    ¿Qué hace? Crea un "contador" en memoria por cada IP.
+// ════════════════════════════════════════════════════════════════
+const limiter = rateLimit({
+  // windowMs: la ventana de tiempo en milisegundos (15 minutos)
+  windowMs: 15 * 60 * 1000,
+
+  // max: número máximo de peticiones por IP en esa ventana
+  max: 100,
+
+  // message: lo que el cliente recibe cuando supera el límite
+  message: {
+    error: 'Demasiadas peticiones desde esta IP.',
+    mensaje: 'Has superado el límite de 100 peticiones en 15 minutos. Intenta nuevamente más tarde.',
+    reintentarEn: '15 minutos'
+  },
+
+  // standardHeaders: agrega cabeceras RateLimit-* estándar a todas las respuestas
+  standardHeaders: true,
+
+  // legacyHeaders: deshabilita las cabeceras X-RateLimit-* antiguas
+  legacyHeaders: false,
+});
+
+// Aplicar el limiter SOLO a las rutas /api/*
+// Razón: no queremos limitar /api-docs ni la ruta raíz /
+app.use('/api/', limiter);
+
+// ════════════════════════════════════════════════════════════════
+// 3. MIDDLEWARES ESTÁNDAR (sin cambios — ya los tenías)
+// ════════════════════════════════════════════════════════════════
 app.use(express.json());
 app.use(express.static('public'));
 
-// Middleware de logs: muestra en consola cada petición que llega
 app.use((req, res, next) => {
   const timestamp = new Date().toISOString().substring(11, 19);
   console.log(`[${timestamp}] ${req.method} ${req.path}`);
   next();
 });
 
-// ── RUTAS ─────────────────────────────────────────────────────────────────────
-// Ruta raíz: verifica que el servidor funciona
+// ════════════════════════════════════════════════════════════════
+// 4. RUTAS (sin cambios — ya las tenías)
+// ════════════════════════════════════════════════════════════════
 app.get('/', (req, res) => {
   res.json({
     mensaje: 'StudySync API funcionando',
@@ -46,20 +76,20 @@ app.get('/', (req, res) => {
   });
 });
 
-// Conexión del enrutador de sesiones
 const sesionesRouter = require('./routes/sesiones');
 app.use('/api/sesiones', sesionesRouter);
 
-// ── SWAGGER UI ─────────────────────────────────────────────────────────
-app.use('/api-docs', 
-  swaggerUi.serve, 
-  swaggerUi.setup(swaggerSpec, {
-    customSiteTitle: 'StudySync API Docs',
-    swaggerOptions: { persistAuthorization: true }
-  })
-);
+// ════════════════════════════════════════════════════════════════
+// 5. SWAGGER — Después de las rutas de la API
+// ════════════════════════════════════════════════════════════════
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
+  customSiteTitle: 'StudySync API Docs',
+  swaggerOptions: { persistAuthorization: true }
+}));
 
-// ── MANEJO DE ERRORES GLOBAL (Siempre al final) ────────────────────────────
+// ════════════════════════════════════════════════════════════════
+// 6. MANEJO DE ERRORES GLOBAL — SIEMPRE AL FINAL
+// ════════════════════════════════════════════════════════════════
 app.use((err, req, res, next) => {
   console.error('[ERROR]', err.message);
   res.status(err.status || 500).json({
