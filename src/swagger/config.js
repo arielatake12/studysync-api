@@ -9,7 +9,7 @@ const opciones = {
       version: '1.0.0',
       description:
         'API REST para coordinación de grupos de estudio universitarios. ' +
-        'Sistema distribuido con notificaciones en tiempo real via Redis Pub/Sub.',
+        'Sistema distribuido con notificaciones en tiempo real a través de Redis Pub/Sub.',
       contact: {
         name: 'M.Sc. Jimmy Nataniel Requena Llorentty',
         email: 'docente@upds.edu'
@@ -21,43 +21,11 @@ const opciones = {
         description: 'Desarrollo local'
       },
       {
-        url: 'https://studysync-api-2ah6.onrender.com',
+        url: 'https://studysync-api-2ah6.onrender.com', // Tu URL real de Render
         description: 'Producción (Render)'
       }
     ],
-    components: {
-      securitySchemes: {
-        BearerAuth: {
-          type: 'http',
-          scheme: 'bearer',
-          bearerFormat: 'JWT',
-          description: 'Ingresar el token JWT obtenido desde POST /api/auth/login'
-        }
-      }
-    },
     paths: {
-      // 🔐 NUEVO: BLOQUE DE AUTENTICACIÓN PARA CONSEGUIR EL TOKEN
-      "/api/auth/login": {
-        "post": {
-          "summary": "Iniciar sesión para obtener Token JWT",
-          "tags": ["Autenticación"],
-          "requestBody": {
-            "required": true,
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "correo": { "type": "string", "example": "estudiante@upds.net" },
-                    "password": { "type": "string", "example": "123456" }
-                  }
-                }
-              }
-            }
-          },
-          "responses": { "200": { "description": "Éxito" } }
-        }
-      },
       "/api/sesiones": {
         "get": {
           "summary": "1. Listar todas las sesiones de estudio",
@@ -67,8 +35,23 @@ const opciones = {
         "post": {
           "summary": "3. Crear una nueva sesión de estudio",
           "tags": ["Sesiones"],
-          "security": [{ "BearerAuth": [] }],
-          "responses": { "201": { "description": "Éxito" } }
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "titulo": { "type": "string", "example": "Exposición de Sistemas Distribuidos" },
+                    "materia": { "type": "string", "example": "Programación IV" },
+                    "descripcion": { "type": "string", "example": "Repaso general de la arquitectura de la API." },
+                    "fechaHora": { "type": "string", "example": "2026-05-25T15:00:00Z" }
+                  }
+                }
+              }
+            }
+          },
+          "responses": { "201": { "description": "Creado con éxito" } }
         }
       },
       "/api/sesiones/{id}": {
@@ -81,14 +64,12 @@ const opciones = {
         "put": {
           "summary": "4. Actualizar una sesión existente",
           "tags": ["Sesiones"],
-          "security": [{ "BearerAuth": [] }],
           "parameters": [{ "in": "path", "name": "id", "required": true, "schema": { "type": "integer" } }],
           "responses": { "200": { "description": "Éxito" } }
         },
         "delete": {
           "summary": "5. Eliminar una sesión",
           "tags": ["Sesiones"],
-          "security": [{ "BearerAuth": [] }],
           "parameters": [{ "in": "path", "name": "id", "required": true, "schema": { "type": "integer" } }],
           "responses": { "200": { "description": "Éxito" } }
         }
@@ -105,7 +86,7 @@ const opciones = {
         "post": {
           "summary": "7. Unirse a una sesión activa (Defensa Avanzado)",
           "tags": ["Sesiones Avanzadas"],
-          "security": [{ "BearerAuth": [] }],
+          "parameters": [{ "in": "path", "name": "id", "required": true, "schema": { "type": "integer" } }],
           "responses": { "200": { "description": "Éxito" } }
         }
       }
