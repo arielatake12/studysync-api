@@ -21,7 +21,7 @@ const opciones = {
         description: 'Desarrollo local'
       },
       {
-        url: 'https://studysync-api-2ah6.onrender.com', // <- Tu URL real de Render
+        url: 'https://studysync-api-2ah6.onrender.com',
         description: 'Producción (Render)'
       }
     ],
@@ -31,11 +31,33 @@ const opciones = {
           type: 'http',
           scheme: 'bearer',
           bearerFormat: 'JWT',
-          description: 'Ingresar el token JWT obtenido desde POST /auth/login'
+          description: 'Ingresar el token JWT obtenido desde POST /api/auth/login'
         }
       }
     },
     paths: {
+      // 🔐 NUEVO: BLOQUE DE AUTENTICACIÓN PARA CONSEGUIR EL TOKEN
+      "/api/auth/login": {
+        "post": {
+          "summary": "Iniciar sesión para obtener Token JWT",
+          "tags": ["Autenticación"],
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "correo": { "type": "string", "example": "estudiante@upds.net" },
+                    "password": { "type": "string", "example": "123456" }
+                  }
+                }
+              }
+            }
+          },
+          "responses": { "200": { "description": "Éxito" } }
+        }
+      },
       "/api/sesiones": {
         "get": {
           "summary": "1. Listar todas las sesiones de estudio",
