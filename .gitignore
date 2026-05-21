@@ -3,3 +3,5 @@ node_modules/
 *.log
 dist/
 .DS_Store
+# Pruebas locales de rendimiento y seguridad
+test-rate-limit.js
