@@ -1,0 +1,13 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Mi primer stack - Bucket S3 para almacenamiento'
+Resources:
+  MiBucketS3:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: mi-bucket-de-practica
+      VersioningConfiguration:
+        Status: Enabled
+Outputs:
+  BucketNombre:
+    Description: 'Nombre del bucket creado'
+    Value: !Ref MiBucketS3

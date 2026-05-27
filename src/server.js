@@ -28,7 +28,7 @@ io.on('connection', (socket) => {
 // 🚀 MODIFICADO: Ahora escuchamos desde 'servidor', no desde 'app'
 servidor.listen(PORT, () => {
   console.log('═══════════════════════════════════════════');
-  console.log(` StudySync API · http://localhost:${PORT}`);
-  console.log(` Modo: ${process.env.NODE_ENV || 'development'}`);
+  console.log(` StudySync API + WebSocket · http://localhost:${PORT}`);
+  console.log(` /api/sesiones   /auth   /api-docs`);
   console.log('═══════════════════════════════════════════');
 });
