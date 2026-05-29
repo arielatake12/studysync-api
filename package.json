@@ -11,7 +11,10 @@
     "node": ">=20.0.0"
   },
   "dependencies": {
+    "@prisma/client": "^5.14.0",
     "@socket.io/redis-adapter": "^8.3.0",
+    "@supabase/ssr": "^0.10.3",
+    "@supabase/supabase-js": "^2.106.2",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
@@ -23,6 +26,8 @@
     "swagger-ui-express": "^5.0.1"
   },
   "devDependencies": {
-    "nodemon": "^3.1.14"
+    "@types/node": "^25.9.1",
+    "nodemon": "^3.1.14",
+    "prisma": "^5.14.0"
   }
 }

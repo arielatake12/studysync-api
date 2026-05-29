@@ -1,169 +1,214 @@
 // src/controllers/sesionesController.js
-// Contiene la lógica de negocio para las sesiones de estudio
-// Por ahora usa un arreglo en memoria — el Paso 11 lo migra a Supabase
+// Migrado a Supabase mediante Prisma ORM - UPDS 2026
 
-// ✨ NUEVO PASO 7: Importamos el cliente de publicación Redis
+// Importamos PrismaClient desde la versión estable que instalamos (Prisma 5)
+const { PrismaClient } = require('@prisma/client');
+const prisma = new PrismaClient();
+
+// Importamos el cliente de publicación Redis (Paso 4)
 const { pub } = require('../redis/client');
 
-let sesiones = []; // Base de datos temporal en memoria
-let nextId = 1; // Contador autoincrementable de IDs
+// Función auxiliar para asegurar que exista al menos un usuario en Supabase (para evitar fallos de FK)
+const asegurarUsuarioPorDefecto = async () => {
+  const usuario = await prisma.usuario.findFirst();
+  if (usuario) return usuario.id;
+
+  // Si no hay usuarios en la base de datos, creamos uno base temporal
+  const nuevoUsuario = await prisma.usuario.create({
+    data: {
+      nombre: "Estudiante UPDS",
+      email: "estudiante@upds.net",
+      password: "password_seguro_123"
+    }
+  });
+  return nuevoUsuario.id;
+};
 
 // ── GET /api/sesiones ─────────────────────────────────────────────────────────
-// Devuelve todas las sesiones disponibles
+// PASO 3: Reemplazar el arreglo por prisma.sesion.findMany()
 const listar = async (req, res) => {
-  res.json({
-    ok: true,
-    total: sesiones.length,
-    datos: sesiones
-  });
+  try {
+    const datos = await prisma.sesion.findMany({
+      include: { autor: true } // Trae los datos del usuario que la creó
+    });
+    
+    res.json({
+      ok: true,
+      total: datos.length,
+      datos: datos
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Error al obtener las sesiones de Supabase', detalle: error.message });
+  }
 };
 
 // ── GET /api/sesiones/:id ─────────────────────────────────────────────────────
-// Devuelve UNA sesión buscando por su ID
+// Obtener una sesión individual buscando por ID real en PostgreSQL
 const obtenerUna = async (req, res) => {
-  const id = parseInt(req.params.id); // Convertir string a número
-  const sesion = sesiones.find(s => s.id === id);
-  if (!sesion) {
-    // 404 = Not Found: el recurso no existe
-    return res.status(404).json({ error: `Sesión ${id} no encontrada` });
+  try {
+    const id = parseInt(req.params.id);
+    const sesion = await prisma.sesion.findUnique({
+      where: { id: id },
+      include: { autor: true }
+    });
+
+    if (!sesion) {
+      return res.status(404).json({ error: `Sesión ${id} no encontrada en la base de datos` });
+    }
+    res.json(sesion);
+  } catch (error) {
+    res.status(500).json({ error: 'Error al buscar la sesión', detalle: error.message });
   }
-  res.json(sesion);
 };
 
 // ── POST /api/sesiones ────────────────────────────────────────────────────────
-// Crea una nueva sesión con los datos del body
+// PASO 3 & PASO 4: Guardar en Supabase y publicar evento real en Redis
 const crear = async (req, res) => {
-  const { titulo, descripcion, fechaHora, materia } = req.body;
+  try {
+    const { titulo, descripcion, materia } = req.body;
 
-  // Validación: título es obligatorio
-  if (!titulo || titulo.trim() === '') {
-    // 400 = Bad Request: el cliente envió datos incorrectos
-    return res.status(400).json({
-      error: 'El campo titulo es obligatorio',
-      campos_requeridos: ['titulo'],
-      campos_opcionales: ['descripcion', 'fechaHora', 'materia']
+    if (!titulo || titulo.trim() === '') {
+      return res.status(400).json({
+        error: 'El campo titulo es obligatorio',
+        campos_requeridos: ['titulo']
+      });
+    }
+
+    // Aseguramos que tengamos un autor_id válido para cumplir la relación de base de datos
+    const autorIdValido = await asegurarUsuarioPorDefecto();
+
+    // Guardamos de forma real en Supabase usando Prisma
+    const nuevaSesion = await prisma.sesion.create({
+      data: {
+        titulo: titulo.trim(),
+        descripcion: descripcion || '',
+        materia: materia || 'General',
+        completada: false,
+        autorId: autorIdValido
+      }
     });
+
+    // PASO 4: Publicamos el evento en Redis usando los datos reales de Supabase
+    await pub.publish('study:sesion:creada', JSON.stringify({
+      tipo: 'sesion:creada',
+      payload: nuevaSesion,
+      timestamp: new Date().toISOString()
+    }));
+    console.log('[Redis] ✓ Evento publicado: sesion:creada desde Supabase →', nuevaSesion.titulo);
+
+    res.status(201).json(nuevaSesion);
+  } catch (error) {
+    res.status(500).json({ error: 'Error al guardar el registro en Supabase', detalle: error.message });
   }
-
-  const nuevaSesion = {
-    id: nextId++,
-    titulo: titulo.trim(),
-    descripcion: descripcion || '',
-    materia: materia || 'General',
-    fechaHora: fechaHora || new Date().toISOString(),
-    completada: false,
-    creadaEn: new Date().toISOString(),
-    participantes: [] // Inicializamos la lista de participantes vacía
-  };
-
-  sesiones.push(nuevaSesion);
-
-  // ✨ NUEVO PASO 7.2: publicar evento en Redis DESPUÉS de guardar la sesión
-  await pub.publish('study:sesion:creada', JSON.stringify({
-    tipo: 'sesion:creada',
-    payload: nuevaSesion,
-    timestamp: new Date().toISOString()
-  }));
-  console.log('[Redis] Evento publicado: sesion:creada →', nuevaSesion.titulo);
-
-  // 201 = Created: se creó un nuevo recurso exitosamente
-  res.status(201).json(nuevaSesion);
 };
 
 // ── PUT /api/sesiones/:id ─────────────────────────────────────────────────────
-// Actualiza una sesión existente (reemplaza todos sus campos)
+// PASO 3: Modificar registro mediante prisma.sesion.update()
 const actualizar = async (req, res) => {
-  const id = parseInt(req.params.id);
-  const indice = sesiones.findIndex(s => s.id === id);
+  try {
+    const id = parseInt(req.params.id);
+    const { titulo, descripcion, materia, completada } = req.body;
 
-  if (indice === -1) {
-    return res.status(404).json({ error: `Sesión ${id} no encontrada` });
+    // Verificamos si existe antes de actualizar
+    const existe = await prisma.sesion.findUnique({ where: { id: id } });
+    if (!existe) {
+      return res.status(404).json({ error: `Sesión ${id} no encontrada` });
+    }
+
+    const sesionActualizada = await prisma.sesion.update({
+      where: { id: id },
+      data: {
+        titulo: titulo ? titulo.trim() : undefined,
+        descripcion: descripcion !== undefined ? descripcion : undefined,
+        materia: materia !== undefined ? materia : undefined,
+        completada: completada !== undefined ? completada : undefined
+      }
+    });
+
+    res.json(sesionActualizada);
+  } catch (error) {
+    res.status(500).json({ error: 'Error al actualizar en Supabase', detalle: error.message });
   }
-
-  // Conservar el id original y la fecha de creación, actualizar el resto
-  sesiones[indice] = {
-    ...sesiones[indice], // Campos originales
-    ...req.body, // Nuevos valores del body
-    id: id, // El ID nunca cambia
-    actualizadaEn: new Date().toISOString()
-  };
-
-  res.json(sesiones[indice]);
 };
 
 // ── DELETE /api/sesiones/:id ──────────────────────────────────────────────────
-// Elimina una sesión del arreglo
+// PASO 3: Eliminar físicamente el registro con prisma.sesion.delete()
 const eliminar = async (req, res) => {
-  const id = parseInt(req.params.id);
-  const longitudAnterior = sesiones.length;
-  sesiones = sesiones.filter(s => s.id !== id);
+  try {
+    const id = parseInt(req.params.id);
 
-  if (sesiones.length === longitudAnterior) {
-    return res.status(404).json({ error: `Sesión ${id} no encontrada` });
+    const existe = await prisma.sesion.findUnique({ where: { id: id } });
+    if (!existe) {
+      return res.status(404).json({ error: `Sesión ${id} no encontrada` });
+    }
+
+    await prisma.sesion.delete({ where: { id: id } });
+
+    res.json({ ok: true, mensaje: `Sesión ${id} eliminada correctamente de Supabase` });
+  } catch (error) {
+    res.status(500).json({ error: 'Error al eliminar de Supabase', detalle: error.message });
   }
-
-  res.json({ ok: true, mensaje: `Sesión ${id} eliminada correctamente` });
 };
 
 // ── GET /api/sesiones/materia/:materia ────────────────────────────────────────
-// 6. AVANZADO: Filtra y devuelve las sesiones por una materia específica
+// Filtro avanzado buscando directo en la base de datos con "equals" insensible a mayúsculas
 const filtrarPorMateria = async (req, res) => {
-  const materiaBuscada = req.params.materia.toLowerCase();
-  const filtradas = sesiones.filter(s => s.materia.toLowerCase() === materiaBuscada);
+  try {
+    const materiaBuscada = req.params.materia;
 
-  res.json({
-    ok: true,
-    total: filtradas.length,
-    materia: req.params.materia,
-    datos: filtradas
-  });
+    const filtradas = await prisma.sesion.findMany({
+      where: {
+        materia: {
+          equals: materiaBuscada,
+          mode: 'insensitive' // No importa si escriben 'general' o 'GENERAL'
+        }
+      }
+    });
+
+    res.json({
+      ok: true,
+      total: filtradas.length,
+      materia: materiaBuscada,
+      datos: filtradas
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Error al filtrar por materia', detalle: error.message });
+  }
 };
 
 // ── POST /api/sesiones/:id/unirse ─────────────────────────────────────────────
-// 7. AVANZADO: Agrega un estudiante al arreglo de participantes de una sesión
+// Lógica para eventos en Redis (Como no hay tabla intermedia de participantes en la consigna básica, 
+// disparamos el evento directo en Upstash mapeando el registro)
 const unirseSesion = async (req, res) => {
-  const id = parseInt(req.params.id);
-  const { estudiante } = req.body;
+  try {
+    const id = parseInt(req.params.id);
+    const { estudiante } = req.body;
 
-  // Validación: requerir el nombre del estudiante en el body
-  if (!estudiante || estudiante.trim() === '') {
-    return res.status(400).json({ error: 'El campo estudiante es obligatorio en el body' });
+    if (!estudiante || estudiante.trim() === '') {
+      return res.status(400).json({ error: 'El campo estudiante es obligatorio en el body' });
+    }
+
+    const sesion = await prisma.sesion.findUnique({ where: { id: id } });
+    if (!sesion) {
+      return res.status(404).json({ error: `Sesión ${id} no encontrada` });
+    }
+
+    await pub.publish('study:usuario:unido', JSON.stringify({
+      tipo: 'usuario:unido',
+      payload: { sesionId: id, estudiante: estudiante.trim() },
+      timestamp: new Date().toISOString()
+    }));
+    console.log(`[Redis] Evento publicado: usuario:unido → ${estudiante.trim()} en sesión ${id}`);
+
+    res.json({
+      ok: true,
+      mensaje: `Estudiante ${estudiante.trim()} unido con éxito a la sesión ${id} mediante Redis`
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Error al procesar la unión', detalle: error.message });
   }
-
-  const sesion = sesiones.find(s => s.id === id);
-
-  if (!sesion) {
-    return res.status(404).json({ error: `Sesión ${id} no encontrada` });
-  }
-
-  // Asegurar que exista el arreglo de participantes por si fue creada sin él
-  if (!sesion.participantes) {
-    sesion.participantes = [];
-  }
-
-  // Evitar duplicados (opcional, por si el estudiante ya se unió)
-  if (sesion.participantes.includes(estudiante.trim())) {
-    return res.status(400).json({ error: `El estudiante ya está inscrito en esta sesión` });
-  }
-
-  sesion.participantes.push(estudiante.trim());
-
-  // ✨ AÑADIDO ESTRATÉGICO: Publicar evento en Redis cuando un estudiante se une
-  await pub.publish('study:usuario:unido', JSON.stringify({
-    tipo: 'usuario:unido',
-    payload: { sesionId: id, estudiante: estudiante.trim() },
-    timestamp: new Date().toISOString()
-  }));
-  console.log(`[Redis] Evento publicado: usuario:unido → ${estudiante.trim()} en sesión ${id}`);
-
-  res.json({
-    ok: true,
-    mensaje: `Estudiante ${estudiante.trim()} unido con éxito a la sesión ${id}`,
-    datos: sesion
-  });
 };
 
-// Exportación limpia incluyendo las 2 funciones nuevas al final
 module.exports = { 
   listar, 
   obtenerUna, 

@@ -32,3 +32,15 @@ La API maneja la entidad `study-sessions` utilizando la ruta base `/api/study-se
 ## 🌐 URL de Producción
 La API se encuentra desplegada y totalmente funcional en el siguiente enlace de producción:
 * **URL Pública:** [https://studysync-api-q3jf.onrender.com/api/study-sessions](https://studysync-api-q3jf.onrender.com/api/study-sessions)
+
+## Arquitectura del Sistema
+
+El sistema ha sido diseñado bajo una **arquitectura orientada a eventos**, lo que permite una alta escalabilidad y un desacoplamiento eficiente entre la gestión de datos y las notificaciones en tiempo real.
+
+### Diagrama de Flujo de Datos
+```mermaid
+graph TD
+    A[Cliente / Thunder Client] -->|HTTP POST| B[API Layer: Express.js]
+    B -->|Prisma ORM| C[(Persistence Layer: PostgreSQL)]
+    B -->|PUBLISH| D[Event Layer: Redis Pub/Sub]
+    D -->|SUBSCRIBE| E[Suscriptor: Procesamiento Asíncrono]
