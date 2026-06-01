@@ -3,6 +3,17 @@
 const swaggerJsdoc = require('swagger-jsdoc');
 const swaggerUi = require('swagger-ui-express');
 
+// ─────────────────────────────
+// 🌐 BASE URL (LOCAL vs PRODUCCIÓN)
+// ─────────────────────────────
+const BASE_URL =
+  process.env.NODE_ENV === 'production'
+    ? 'https://studysync-api-2ah6.onrender.com'
+    : 'http://localhost:3000';
+
+// ─────────────────────────────
+// 📚 SWAGGER SPEC
+// ─────────────────────────────
 const swaggerSpec = swaggerJsdoc({
   definition: {
     openapi: '3.0.0',
@@ -10,24 +21,30 @@ const swaggerSpec = swaggerJsdoc({
     info: {
       title: 'StudySync API',
       version: '1.0.0',
-      description: 'API REST para coordinación de grupos de estudio universitarios.',
+      description:
+        'API REST para coordinación de grupos de estudio universitarios.',
       contact: {
         name: 'M.Sc. Jimmy Nataniel Requena Llorentty',
         email: 'docente@upds.edu'
       }
     },
 
+    // ─────────────────────────────
+    // 🌐 SERVIDORES
+    // ─────────────────────────────
     servers: [
       {
-        url: 'http://localhost:3000',
-        description: 'Desarrollo local'
-      },
-      {
-        url: 'https://studysync-api-2ah6.onrender.com',
-        description: 'Producción'
+        url: BASE_URL,
+        description:
+          process.env.NODE_ENV === 'production'
+            ? 'Producción (Render)'
+            : 'Desarrollo local'
       }
     ],
 
+    // ─────────────────────────────
+    // 🔐 SEGURIDAD JWT
+    // ─────────────────────────────
     components: {
       securitySchemes: {
         BearerAuth: {
@@ -37,6 +54,9 @@ const swaggerSpec = swaggerJsdoc({
         }
       },
 
+      // ─────────────────────────────
+      // 📦 MODELOS
+      // ─────────────────────────────
       schemas: {
         Usuario: {
           type: 'object',
@@ -53,7 +73,10 @@ const swaggerSpec = swaggerJsdoc({
           properties: {
             id: { type: 'integer', example: 1 },
             titulo: { type: 'string', example: 'Grupo de Programación IV' },
-            descripcion: { type: 'string', example: 'Resolución de casos de estudio' },
+            descripcion: {
+              type: 'string',
+              example: 'Resolución de casos de estudio'
+            },
             materia: { type: 'string', example: 'Programación' },
             fechaHora: { type: 'string', format: 'date-time' },
             lugar: { type: 'string', example: 'Biblioteca' },
@@ -71,12 +94,14 @@ const swaggerSpec = swaggerJsdoc({
       }
     },
 
-    // 🔐 JWT global
+    // 🔐 JWT GLOBAL
     security: [{ BearerAuth: [] }]
   },
 
-  // 📌 IMPORTANTE: rutas documentadas
   apis: ['./src/routes/*.js']
 });
 
+// ─────────────────────────────
+// 📤 EXPORT
+// ─────────────────────────────
 module.exports = { swaggerUi, swaggerSpec };
