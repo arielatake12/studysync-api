@@ -1,38 +1,35 @@
-// prisma/schema.prisma
-
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
   provider  = "postgresql"
-  url       = env("DIRECT_URL")
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model Usuario {
-  id        Int      @id @default(autoincrement())
-  nombre    String
-  email     String   @unique
-  password  String   
-  creadoEn  DateTime @default(now()) @map("creado_en")
+  id       Int      @id @default(autoincrement())
+  nombre   String
+  email    String   @unique
+  password String
+  creadoEn DateTime @default(now()) @map("creado_en")
+  sesiones Sesion[]
 
-  sesiones  Sesion[] 
-
-  @@map("usuarios") 
+  @@map("usuarios")
 }
 
 model Sesion {
-  id            Int       @id @default(autoincrement())
+  id            Int      @id @default(autoincrement())
   titulo        String
-  descripcion   String    @default("")
-  materia       String    @default("General")
-  fechaHora     DateTime  @default(now()) @map("fecha_hora")
-  completada    Boolean   @default(false)
-  creadaEn      DateTime  @default(now()) @map("creada_en")
-  actualizadaEn DateTime? @updatedAt @map("actualizada_en")
+  descripcion   String?
+  materia       String
+  fechaHora     DateTime @map("fecha_hora")
+  actualizadoEn DateTime @updatedAt @map("actualizado_en")
+  creadoEn      DateTime @default(now()) @map("creado_en")
+  creadorId     Int      @map("creador_id")
+  lugar         String?
+  creador       Usuario  @relation(fields: [creadorId], references: [id])
 
-  autorId       Int       @map("autor_id")
-  autor         Usuario   @relation(fields: [autorId], references: [id])
-
-  @@map("sesiones") 
+  @@map("sesiones")
 }

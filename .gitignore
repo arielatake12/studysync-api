@@ -6,3 +6,4 @@ dist/
 # Pruebas locales de rendimiento y seguridad
 test-rate-limit.js
 /src/generated/prisma
+JWT_EXPIRATION=7d

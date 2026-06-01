@@ -1,34 +1,89 @@
-// src/server.js
-// Punto de entrada principal — inicia el servidor HTTP con Socket.io + Redis
-require('dotenv').config();
-const http = require('http');                  // 🛠️ AGREGADO: Módulo HTTP nativo
-const { Server } = require('socket.io');       // 🛠️ AGREGADO: Motor de WebSockets
+'use strict';
+
+const path = require('path');
+const http = require('http');
+const { Server } = require('socket.io');
+const jwt = require('jsonwebtoken');
+
+// ─────────────────────────────
+// 🔥 FORZAR SOLO .env (SIN DOTENVX / MULTI ENV)
+// ─────────────────────────────
+require('dotenv').config({
+  path: path.resolve(__dirname, '../.env'),
+  override: true
+});
+
 const app = require('./app');
+const socketHandler = require('./socket/socket');
+
+// ─────────────────────────────
+// 🔥 REDIS (SAFE LOAD)
+// ─────────────────────────────
+let redis = null;
+
+try {
+  redis = require('./redis/client');
+  console.log('✓ Redis module cargado');
+} catch (err) {
+  console.warn('⚠️ Redis desactivado (modo offline)');
+}
+
+// ─────────────────────────────
+// 🌐 HTTP SERVER
+// ─────────────────────────────
 const PORT = process.env.PORT || 3000;
+const server = http.createServer(app);
 
-// 🛠️ AGREGADO: Crear servidor HTTP y montar Socket.io sobre él
-const servidor = http.createServer(app);
-const io = new Server(servidor, {
-  cors: { origin: '*' },
-  transports: ['polling', 'websocket']
+// ─────────────────────────────
+// 🔌 SOCKET.IO
+// ─────────────────────────────
+const io = new Server(server, {
+  cors: {
+    origin: process.env.CORS_ORIGIN || "*",
+    methods: ["GET", "POST"]
+  }
 });
 
-// 🛠️ AGREGADO: Inicializar tuscriptores Redis pasándole la instancia 'io'
-const { iniciarSuscripciones } = require('./subscribers/notificaciones');
-iniciarSuscripciones(io);
+// ─────────────────────────────
+// 🔐 JWT MIDDLEWARE SOCKET
+// ─────────────────────────────
+io.use((socket, next) => {
+  const token = socket.handshake.auth?.token;
 
-// 🛠️ AGREGADO: Manejar conexiones básicas de los navegadores por consola
-io.on('connection', (socket) => {
-  console.log(`[WS] Cliente conectado: ${socket.id}`);
-  socket.on('disconnect', () => {
-    console.log(`[WS] Cliente desconectado: ${socket.id}`);
-  });
+  if (!token) {
+    return next(new Error("Token requerido"));
+  }
+
+  try {
+    const user = jwt.verify(token, process.env.JWT_SECRET);
+    socket.user = user;
+    next();
+  } catch (err) {
+    return next(new Error("No autorizado"));
+  }
 });
 
-// 🚀 MODIFICADO: Ahora escuchamos desde 'servidor', no desde 'app'
-servidor.listen(PORT, () => {
-  console.log('═══════════════════════════════════════════');
-  console.log(` StudySync API + WebSocket · http://localhost:${PORT}`);
-  console.log(` /api/sesiones   /auth   /api-docs`);
-  console.log('═══════════════════════════════════════════');
+// ─────────────────────────────
+// 📡 SOCKET HANDLER
+// ─────────────────────────────
+socketHandler(io, redis);
+
+// ─────────────────────────────
+// 🌐 GLOBAL ACCESS
+// ─────────────────────────────
+global.io = io;
+global.redis = redis;
+
+// ─────────────────────────────
+// 🧪 DEBUG CONTROLADO (NO EN PRODUCCIÓN)
+// ─────────────────────────────
+if (process.env.NODE_ENV !== 'production') {
+  console.log("🔥 REDIS_URL =", process.env.REDIS_URL);
+}
+
+// ─────────────────────────────
+// 🚀 START SERVER
+// ─────────────────────────────
+server.listen(PORT, () => {
+  console.log(`🚀 Server running on http://localhost:${PORT}`);
 });

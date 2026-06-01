@@ -1,36 +1,102 @@
-// src/redis/client.js
-// Exporta DOS conexiones Redis independientes:
-// - pub: para publicar mensajes (no puede suscribirse mientras publica)
-// - sub: para suscribirse a canales (no puede publicar mientras escucha)
-// Esta separación es OBLIGATORIA en Redis Pub/Sub
+'use strict';
 
-require('dotenv').config();
+require('dotenv').config({ path: '.env' });
+
 const Redis = require('ioredis');
 
 const REDIS_URL = process.env.REDIS_URL;
 
-if (!REDIS_URL || REDIS_URL.includes('PENDIENTE')) {
-    console.error('❌ REDIS_URL no configurada en .env');
-    process.exit(1); // Detener el servidor si Redis no está configurado
+// 🔥 DEBUG (solo desarrollo)
+if (process.env.NODE_ENV !== 'production') {
+  console.log('🔥 REDIS_URL REAL =', REDIS_URL);
 }
 
-// Opciones compartidas de conexión y reintentos automáticos
-const opciones = {
-    maxRetriesPerRequest: 3,          // Reintentar 3 veces si falla
-    retryStrategy: (times) => {
-      if (times > 3) return null;     // Después de 3 intentos, rendirse
-      return Math.min(times * 200, 1000); // Esperar 200ms, 400ms, 600ms...
+// ─────────────────────────────
+// VALIDACIONES
+// ─────────────────────────────
+if (!REDIS_URL) {
+  console.error('❌ REDIS_URL no está definida en .env');
+  process.exit(1);
+}
+
+if (!/^rediss?:\/\//.test(REDIS_URL)) {
+  console.error('❌ REDIS_URL inválida (debe iniciar con redis:// o rediss://)');
+  process.exit(1);
+}
+
+if (
+  REDIS_URL.includes('TU_TOKEN') ||
+  REDIS_URL.includes('PENDIENTE') ||
+  REDIS_URL.includes('example')
+) {
+  console.error('❌ REDIS_URL contiene valores de ejemplo');
+  process.exit(1);
+}
+
+// ─────────────────────────────
+// CONFIG UPSTASH OPTIMIZADO
+// ─────────────────────────────
+const redisConfig = {
+  maxRetriesPerRequest: 1,
+
+  retryStrategy(times) {
+    if (times > 3) {
+      console.error('❌ Redis no disponible (modo seguro activado)');
+      return null; // 🚫 detiene reconexión infinita
     }
+
+    return Math.min(times * 300, 2000);
+  },
+
+  // 🔥 IMPORTANTE PARA UPSTASH
+  enableReadyCheck: false, // ❌ evita error NOPERM INFO
+  lazyConnect: false
 };
 
-// Conexión para PUBLICAR eventos (Locutor)
-const pub = new Redis(REDIS_URL, opciones);
-pub.on('connect', () => console.log('✓ Redis Pub: conectado a Upstash'));
-pub.on('error',   (e) => console.error('✗ Redis Pub error:', e.message));
+// ─────────────────────────────
+// CONEXIONES
+// ─────────────────────────────
+const pub = new Redis(REDIS_URL, redisConfig);
+const sub = new Redis(REDIS_URL, redisConfig);
 
-// Conexión para SUSCRIBIRSE a canales (Oyente)
-const sub = new Redis(REDIS_URL, opciones);
-sub.on('connect', () => console.log('✓ Redis Sub: conectado a Upstash'));
-sub.on('error',   (e) => console.error('✗ Redis Sub error:', e.message));
+// ─────────────────────────────
+// EVENTOS
+// ─────────────────────────────
+pub.on('connect', () => {
+  if (process.env.NODE_ENV !== 'production') {
+    console.log('✓ Redis PUB conectado');
+  }
+});
+
+sub.on('connect', () => {
+  if (process.env.NODE_ENV !== 'production') {
+    console.log('✓ Redis SUB conectado');
+  }
+});
+
+// errores silenciosos en producción (opcional recomendado)
+pub.on('error', (err) => {
+  if (process.env.NODE_ENV !== 'production') {
+    console.error('✗ Redis PUB error:', err.message);
+  }
+});
+
+sub.on('error', (err) => {
+  if (process.env.NODE_ENV !== 'production') {
+    console.error('✗ Redis SUB error:', err.message);
+  }
+});
+
+// ─────────────────────────────
+// CIERRE LIMPIO
+// ─────────────────────────────
+process.on('SIGINT', async () => {
+  try {
+    await pub.quit();
+    await sub.quit();
+  } catch (e) {}
+
+  process.exit(0);
+});
 
 module.exports = { pub, sub };

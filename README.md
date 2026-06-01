@@ -40,7 +40,7 @@ El sistema ha sido diseñado bajo una **arquitectura orientada a eventos**, lo q
 ### Diagrama de Flujo de Datos
 ```mermaid
 graph TD
-    A[Cliente / Thunder Client] -->|HTTP POST| B[API Layer: Express.js]
-    B -->|Prisma ORM| C[(Persistence Layer: PostgreSQL)]
-    B -->|PUBLISH| D[Event Layer: Redis Pub/Sub]
-    D -->|SUBSCRIBE| E[Suscriptor: Procesamiento Asíncrono]
+    A[Cliente] -->|HTTP POST| B[API Express]
+    B -->|Prisma ORM| C[(PostgreSQL)]
+    B -->|PUBLISH| D[Redis Pub/Sub]
+    D -->|SUBSCRIBE| E[Suscriptor]

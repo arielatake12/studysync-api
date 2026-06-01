@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>StudySync - Chat</title>
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+</head>
+<body>
+
+  <h2>💬 Chat de sesión</h2>
+
+  <div id="chat"></div>
+
+  <input id="msg" placeholder="Escribe mensaje">
+  <button onclick="enviar()">Enviar</button>
+
+  <script>
+    const token = localStorage.getItem("token");
+    const sesionId = localStorage.getItem("sesionId");
+
+    // 🔌 conexión socket con JWT
+    const socket = io("http://localhost:3000", {
+      auth: { token }
+    });
+
+    // entrar a sala
+    socket.emit("sesion:unirse", sesionId);
+
+    // recibir mensajes
+    socket.on("sesion:mensaje", (data) => {
+      const chat = document.getElementById("chat");
+      chat.innerHTML += `<p><b>${data.user}:</b> ${data.message}</p>`;
+    });
+
+    // actividad (usuarios entrando)
+    socket.on("sesion:actividad", (data) => {
+      const chat = document.getElementById("chat");
+      chat.innerHTML += `<p style="color:gray">${data.message}</p>`;
+    });
+
+    function enviar() {
+      const message = document.getElementById("msg").value;
+
+      socket.emit("sesion:mensaje", {
+        sesionId,
+        message
+      });
+
+      document.getElementById("msg").value = "";
+    }
+  </script>
+
+</body>
+</html>

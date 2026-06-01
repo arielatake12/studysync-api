@@ -1,34 +1,61 @@
-// src/subscribers/notificaciones.js
+'use strict';
+
 const { sub } = require('../redis/client');
 
-// Escucha canales Redis y retransmite los eventos a los navegadores vía Socket.io
+/**
+ * Suscripción Redis → Socket.io
+ */
 const iniciarSuscripciones = (io) => {
-    
-    // Suscribirse a TODOS los canales que empiecen con 'study:'
-    sub.psubscribe('study:*', (err, count) => {
-      if (err) {
-        console.error('[Sub] Error al suscribirse:', err.message);
+
+  // ─────────────────────────────
+  // 🔥 SUSCRIPCIÓN A PATRONES
+  // ─────────────────────────────
+  sub.psubscribe('study:*', (err, count) => {
+    if (err) {
+      console.error('[Redis SUB] Error al suscribirse:', err.message);
+      return;
+    }
+    console.log(`[Redis SUB] ✓ Escuchando ${count} patrón(es)`);
+  });
+
+  // ─────────────────────────────
+  // 📡 RECEPCIÓN DE MENSAJES
+  // ─────────────────────────────
+  sub.on('pmessage', (pattern, channel, message) => {
+    try {
+
+      // 🔐 seguridad: evitar crash si mensaje no es JSON válido
+      let evento;
+
+      try {
+        evento = JSON.parse(message);
+      } catch (e) {
+        console.warn('[Redis SUB] Mensaje no JSON ignorado:', message);
         return;
       }
-      console.log(`[Sub] ✓ Escuchando ${count} patrón(es) en Redis...`);
-    });
 
-    // Este listener se ejecuta cada vez que llega un mensaje de Redis
-    sub.on('pmessage', (pattern, channel, message) => {
-      try {
-        const evento = JSON.parse(message);
-        console.log(`[Sub] Recibido en ${channel}:`, evento.tipo);
+      console.log(`[Redis SUB] ${channel}:`, evento?.tipo || 'sin-tipo');
 
-        // Emitir el evento a TODOS los navegadores conectados via Socket.io
-        io.emit('nuevo-evento', {
-          canal: channel,
-          ...evento
-        });
+      // ─────────────────────────────
+      // 📡 EMIT A SOCKET.IO
+      // ─────────────────────────────
+      io.emit('nuevo-evento', {
+        canal: channel,
+        ...evento
+      });
 
-      } catch (error) {
-        console.error('[Sub] Error procesando mensaje:', error.message);
-      }
-    });
+    } catch (error) {
+      console.error('[Redis SUB] Error procesando evento:', error.message);
+    }
+  });
+
+  // ─────────────────────────────
+  // 🚨 MANEJO DE ERRORES REDIS
+  // ─────────────────────────────
+  sub.on('error', (err) => {
+    console.error('[Redis SUB] Error conexión:', err.message);
+  });
+
 };
 
 module.exports = { iniciarSuscripciones };
