@@ -3,17 +3,6 @@
 const swaggerJsdoc = require('swagger-jsdoc');
 const swaggerUi = require('swagger-ui-express');
 
-// ─────────────────────────────
-// 🌐 BASE URL (LOCAL vs PRODUCCIÓN)
-// ─────────────────────────────
-const BASE_URL =
-  process.env.NODE_ENV === 'production'
-    ? 'https://studysync-api-2ah6.onrender.com'
-    : 'http://localhost:3000';
-
-// ─────────────────────────────
-// 📚 SWAGGER SPEC
-// ─────────────────────────────
 const swaggerSpec = swaggerJsdoc({
   definition: {
     openapi: '3.0.0',
@@ -29,22 +18,18 @@ const swaggerSpec = swaggerJsdoc({
       }
     },
 
-    // ─────────────────────────────
-    // 🌐 SERVIDORES
-    // ─────────────────────────────
+    // 🌐 SERVIDORES (LOCAL + RENDER)
     servers: [
       {
-        url: BASE_URL,
-        description:
-          process.env.NODE_ENV === 'production'
-            ? 'Producción (Render)'
-            : 'Desarrollo local'
+        url: 'http://localhost:3000',
+        description: 'Local'
+      },
+      {
+        url: 'https://studysync-api-2ah6.onrender.com',
+        description: 'Producción (Render)'
       }
     ],
 
-    // ─────────────────────────────
-    // 🔐 SEGURIDAD JWT
-    // ─────────────────────────────
     components: {
       securitySchemes: {
         BearerAuth: {
@@ -54,9 +39,6 @@ const swaggerSpec = swaggerJsdoc({
         }
       },
 
-      // ─────────────────────────────
-      // 📦 MODELOS
-      // ─────────────────────────────
       schemas: {
         Usuario: {
           type: 'object',
@@ -94,14 +76,10 @@ const swaggerSpec = swaggerJsdoc({
       }
     },
 
-    // 🔐 JWT GLOBAL
     security: [{ BearerAuth: [] }]
   },
 
   apis: ['./src/routes/*.js']
 });
 
-// ─────────────────────────────
-// 📤 EXPORT
-// ─────────────────────────────
 module.exports = { swaggerUi, swaggerSpec };

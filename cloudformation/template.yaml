@@ -1,0 +1,28 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: StudySync Infraestructura
+
+Parameters:
+  Ambiente:
+    Type: String
+    Default: dev
+
+Resources:
+
+  StudySyncBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: studysync-bucket-dev
+
+  TablaEventos:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: studysync-eventos-dev
+      BillingMode: PAY_PER_REQUEST
+
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S   # 👈 CLAVE
+
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH

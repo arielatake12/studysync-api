@@ -6,97 +6,63 @@ const Redis = require('ioredis');
 
 const REDIS_URL = process.env.REDIS_URL;
 
-// 🔥 DEBUG (solo desarrollo)
-if (process.env.NODE_ENV !== 'production') {
-  console.log('🔥 REDIS_URL REAL =', REDIS_URL);
-}
-
-// ─────────────────────────────
-// VALIDACIONES
-// ─────────────────────────────
 if (!REDIS_URL) {
   console.error('❌ REDIS_URL no está definida en .env');
   process.exit(1);
 }
 
-if (!/^rediss?:\/\//.test(REDIS_URL)) {
-  console.error('❌ REDIS_URL inválida (debe iniciar con redis:// o rediss://)');
-  process.exit(1);
-}
-
-if (
-  REDIS_URL.includes('TU_TOKEN') ||
-  REDIS_URL.includes('PENDIENTE') ||
-  REDIS_URL.includes('example')
-) {
-  console.error('❌ REDIS_URL contiene valores de ejemplo');
-  process.exit(1);
-}
-
-// ─────────────────────────────
-// CONFIG UPSTASH OPTIMIZADO
-// ─────────────────────────────
 const redisConfig = {
-  maxRetriesPerRequest: 1,
-
+  maxRetriesPerRequest: 2,
   retryStrategy(times) {
-    if (times > 3) {
-      console.error('❌ Redis no disponible (modo seguro activado)');
-      return null; // 🚫 detiene reconexión infinita
-    }
-
+    if (times > 3) return null;
     return Math.min(times * 300, 2000);
-  },
-
-  // 🔥 IMPORTANTE PARA UPSTASH
-  enableReadyCheck: false, // ❌ evita error NOPERM INFO
-  lazyConnect: false
+  }
 };
 
-// ─────────────────────────────
-// CONEXIONES
-// ─────────────────────────────
-const pub = new Redis(REDIS_URL, redisConfig);
-const sub = new Redis(REDIS_URL, redisConfig);
+// ✔ UNA SOLA CONEXIÓN (ESTABLE)
+const redis = new Redis(REDIS_URL, redisConfig);
 
 // ─────────────────────────────
-// EVENTOS
+// LOGS
 // ─────────────────────────────
-pub.on('connect', () => {
+redis.on('connect', () => {
   if (process.env.NODE_ENV !== 'production') {
-    console.log('✓ Redis PUB conectado');
+    console.log('✓ Redis conectado');
   }
 });
 
-sub.on('connect', () => {
-  if (process.env.NODE_ENV !== 'production') {
-    console.log('✓ Redis SUB conectado');
-  }
-});
-
-// errores silenciosos en producción (opcional recomendado)
-pub.on('error', (err) => {
-  if (process.env.NODE_ENV !== 'production') {
-    console.error('✗ Redis PUB error:', err.message);
-  }
-});
-
-sub.on('error', (err) => {
-  if (process.env.NODE_ENV !== 'production') {
-    console.error('✗ Redis SUB error:', err.message);
-  }
+redis.on('error', (err) => {
+  console.error('✗ Redis error:', err.message);
 });
 
 // ─────────────────────────────
-// CIERRE LIMPIO
+// JWT AUTH LAYER
 // ─────────────────────────────
-process.on('SIGINT', async () => {
-  try {
-    await pub.quit();
-    await sub.quit();
-  } catch (e) {}
+const redisAuth = redis;
 
-  process.exit(0);
-});
+// 🔥 BLACKLIST TOKEN
+redisAuth.blacklistToken = async (token, ttl) => {
+  return await redis.set(`bl:${token}`, "1", "EX", ttl);
+};
 
-module.exports = { pub, sub };
+// 🔍 verificar blacklist
+redisAuth.isBlacklisted = async (token) => {
+  return await redis.get(`bl:${token}`);
+};
+
+// 💾 refresh token
+redisAuth.saveRefreshToken = async (userId, refreshToken, ttl) => {
+  return await redis.set(`refresh:${userId}`, refreshToken, "EX", ttl);
+};
+
+// 🔍 get refresh token
+redisAuth.getRefreshToken = async (userId) => {
+  return await redis.get(`refresh:${userId}`);
+};
+
+// ❌ delete refresh token
+redisAuth.deleteRefreshToken = async (userId) => {
+  return await redis.del(`refresh:${userId}`);
+};
+
+module.exports = { redisAuth };

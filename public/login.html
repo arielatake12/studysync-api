@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>StudySync — Login</title>
+  <link rel="stylesheet" href="/app.css"/>
+</head>
+
+<body>
+
+<div class="auth-wrapper">
+  <div class="auth-box">
+
+    <h1>StudySync</h1>
+    <p>Inicia sesión para gestionar tus sesiones</p>
+
+    <!-- EMAIL -->
+    <div class="form-group">
+      <label>Email</label>
+      <input id="email" type="email" placeholder="tu@email.com"/>
+    </div>
+
+    <!-- PASSWORD -->
+    <div class="form-group">
+      <label>Contraseña</label>
+      <input id="password" type="password" placeholder="••••••••"
+             onkeydown="if(event.key==='Enter') login()"/>
+    </div>
+
+    <!-- BOTÓN -->
+    <button class="btn btn-primary" style="width:100%" onclick="login()">
+      Iniciar sesión
+    </button>
+
+    <!-- MENSAJE -->
+    <div id="msg" class="msg"></div>
+
+    <div class="auth-footer">
+      ¿No tienes cuenta?
+      <a class="link" href="/register.html">Regístrate aquí</a>
+    </div>
+
+  </div>
+</div>
+
+<script>
+const API_URL = "/auth/login";
+
+async function login() {
+  const email = document.getElementById("email").value.trim();
+  const password = document.getElementById("password").value;
+  const msg = document.getElementById("msg");
+
+  msg.className = "msg";
+  msg.textContent = "";
+
+  if (!email || !password) {
+    msg.className = "msg error";
+    msg.textContent = "Completa todos los campos";
+    return;
+  }
+
+  try {
+    const res = await fetch(API_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ email, password })
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      msg.className = "msg error";
+      msg.textContent = data.error || "Credenciales inválidas";
+      return;
+    }
+
+    // 🔥 IMPORTANTE: tu backend devuelve accessToken (NO token)
+    sessionStorage.setItem("token", data.accessToken);
+    sessionStorage.setItem("usuario", JSON.stringify(data.usuario));
+
+    msg.className = "msg ok";
+    msg.textContent = "Login correcto. Redirigiendo...";
+
+    setTimeout(() => {
+      window.location.href = "/index.html";
+    }, 800);
+
+  } catch (err) {
+    msg.className = "msg error";
+    msg.textContent = "Error de conexión con el servidor";
+  }
+}
+</script>
+
+</body>
+</html>

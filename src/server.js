@@ -1,26 +1,35 @@
 'use strict';
 
-const path = require('path');
 const http = require('http');
 const { Server } = require('socket.io');
 const jwt = require('jsonwebtoken');
 
-require('dotenv').config({
-  path: path.resolve(__dirname, '../.env'),
-  override: true
-});
+require('dotenv').config(); // ✔ FIX IMPORTANTE (Render compatible)
 
 const app = require('./app');
 const socketHandler = require('./socket/socket');
 
 // ─────────────────────────────
-// 🔥 REDIS SAFE LOAD
+// 🔐 VALIDACIÓN CRÍTICA
+// ─────────────────────────────
+if (!process.env.JWT_SECRET) {
+  console.error("❌ JWT_SECRET no definido");
+  process.exit(1);
+}
+
+if (!process.env.DATABASE_URL) {
+  console.error("❌ DATABASE_URL no definido");
+  process.exit(1);
+}
+
+// ─────────────────────────────
+// 🔥 REDIS (SAFE LOAD)
 // ─────────────────────────────
 let redis = null;
 
 try {
   redis = require('./redis/client');
-  console.log('✓ Redis module cargado');
+  console.log('✓ Redis cargado');
 } catch (err) {
   console.warn('⚠️ Redis desactivado (modo offline)');
 }
@@ -32,17 +41,17 @@ const PORT = process.env.PORT || 3000;
 const server = http.createServer(app);
 
 // ─────────────────────────────
-// 🔌 SOCKET.IO
+// 🔌 SOCKET.IO CONFIG
 // ─────────────────────────────
 const io = new Server(server, {
   cors: {
     origin: process.env.CORS_ORIGIN || "*",
-    methods: ["GET", "POST"]
+    methods: ["GET", "POST", "PUT", "DELETE"]
   }
 });
 
 // ─────────────────────────────
-// 🔐 JWT SOCKET AUTH
+// 🔐 JWT AUTH SOCKET
 // ─────────────────────────────
 io.use((socket, next) => {
   const token = socket.handshake.auth?.token;
@@ -61,25 +70,36 @@ io.use((socket, next) => {
 });
 
 // ─────────────────────────────
-// 📡 SOCKET HANDLER
+// 📡 DEBUG CONEXIONES (DEFENSA)
+// ─────────────────────────────
+io.on("connection", (socket) => {
+  console.log(`🔌 Usuario conectado: ${socket.user.email}`);
+
+  socket.on("disconnect", () => {
+    console.log(`❌ Usuario desconectado: ${socket.user.email}`);
+  });
+});
+
+// ─────────────────────────────
+// 📡 LOGICA SOCKET (SESIONES / EVENTOS)
 // ─────────────────────────────
 socketHandler(io, redis);
 
 // ─────────────────────────────
-// 🌐 GLOBALS
+// 🌐 GLOBAL ACCESS
 // ─────────────────────────────
 global.io = io;
 global.redis = redis;
 
 // ─────────────────────────────
-// 🧪 DEBUG (solo local)
+// 🧪 DEBUG INICIAL (MUY ÚTIL EN RENDER)
 // ─────────────────────────────
-if (process.env.NODE_ENV !== 'production') {
-  console.log("🔥 REDIS_URL =", process.env.REDIS_URL);
-}
+console.log("🚀 SERVER INICIANDO...");
+console.log("DB:", process.env.DATABASE_URL ? "OK" : "MISSING");
+console.log("JWT:", process.env.JWT_SECRET ? "OK" : "MISSING");
 
 // ─────────────────────────────
-// 🚀 START SERVER (FIX RENDER)
+// 🚀 START SERVER (RENDER FIX)
 // ─────────────────────────────
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Server running on port ${PORT}`);

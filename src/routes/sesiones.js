@@ -22,7 +22,6 @@ const autenticar = require('../middlewares/autenticar');
  */
 router.get('/', ctrl.listar);
 
-
 /**
  * @swagger
  * /api/sesiones/materia/{materia}:
@@ -40,7 +39,6 @@ router.get('/', ctrl.listar);
  *         description: Sesiones filtradas
  */
 router.get('/materia/:materia', ctrl.filtrarPorMateria);
-
 
 /**
  * @swagger
@@ -61,7 +59,6 @@ router.get('/materia/:materia', ctrl.filtrarPorMateria);
  *         description: No encontrada
  */
 router.get('/:id', ctrl.obtenerUna);
-
 
 // ─────────────────────────────────────────────
 // 🔐 SESIONES PROTEGIDAS (JWT)
@@ -88,28 +85,22 @@ router.get('/:id', ctrl.obtenerUna);
  *             properties:
  *               titulo:
  *                 type: string
- *                 example: Estudio Programación IV
  *               materia:
  *                 type: string
- *                 example: Programación IV
+ *               descripcion:
+ *                 type: string
  *               fechaHora:
  *                 type: string
  *                 format: date-time
- *                 example: 2026-06-01T10:00:00
- *               descripcion:
- *                 type: string
- *                 example: Repaso general
  *               lugar:
  *                 type: string
- *                 example: Biblioteca
  *     responses:
  *       201:
- *         description: Sesión creada
+ *         description: Sesión creada correctamente
  *       401:
  *         description: No autorizado
  */
 router.post('/', autenticar, ctrl.crear);
-
 
 /**
  * @swagger
@@ -131,18 +122,6 @@ router.post('/', autenticar, ctrl.crear);
  *         application/json:
  *           schema:
  *             type: object
- *             properties:
- *               titulo:
- *                 type: string
- *               materia:
- *                 type: string
- *               fechaHora:
- *                 type: string
- *                 format: date-time
- *               descripcion:
- *                 type: string
- *               lugar:
- *                 type: string
  *     responses:
  *       200:
  *         description: Sesión actualizada
@@ -150,7 +129,6 @@ router.post('/', autenticar, ctrl.crear);
  *         description: No encontrada
  */
 router.put('/:id', autenticar, ctrl.actualizar);
-
 
 /**
  * @swagger
@@ -174,7 +152,6 @@ router.put('/:id', autenticar, ctrl.actualizar);
  */
 router.delete('/:id', autenticar, ctrl.eliminar);
 
-
 /**
  * @swagger
  * /api/sesiones/{id}/unirse:
@@ -192,9 +169,21 @@ router.delete('/:id', autenticar, ctrl.eliminar);
  *     responses:
  *       200:
  *         description: Unido a la sesión
- *       404:
- *         description: Sesión no encontrada
  */
 router.post('/:id/unirse', autenticar, ctrl.unirseSesion);
+
+// ─────────────────────────────────────────────
+// 🔐 SEGURIDAD GLOBAL SWAGGER
+// ─────────────────────────────────────────────
+
+/**
+ * @swagger
+ * components:
+ *   securitySchemes:
+ *     BearerAuth:
+ *       type: http
+ *       scheme: bearer
+ *       bearerFormat: JWT
+ */
 
 module.exports = router;

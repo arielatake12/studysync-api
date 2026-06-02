@@ -1,62 +1,206 @@
-<!-- public/index.html -->
-<!DOCTYPE html> 
-<html lang="es"> 
-<head> 
-    <meta charset="UTF-8"> 
-    <title>StudySync — Notificaciones en Tiempo Real</title> 
-    <!-- Script de Socket.io provisto automáticamente por el servidor --> 
-    <script src="/socket.io/socket.io.js"></script> 
-    <style> 
-      body { font-family: Arial, sans-serif; max-width: 700px; margin: 40px auto; padding: 20px; } 
-      h1 { color: #1A56DB; } 
-      #status { padding: 8px; border-radius: 4px; margin-bottom: 16px; } 
-      .conectado { background: #D1FAE5; color: #065F46; } 
-      .desconectado { background: #FEE2E2; color: #7F1D1D; } 
-      #eventos { list-style: none; padding: 0; } 
-      #eventos li { 
-        padding: 12px; margin: 8px 0; border-radius: 8px; 
-        background: #EFF6FF; border-left: 4px solid #1A56DB; 
-        animation: aparecer 0.3s ease; 
-      } 
-      @keyframes aparecer { from { opacity:0; transform:translateY(-8px); } to { opacity:1; } }
-      .hora { font-size: 11px; color: #64748B; } 
-    </style> 
-</head> 
-<body> 
-    <h1>📡 StudySync — Eventos en Tiempo Real</h1> 
-    <div id="status" class="desconectado">⚫ Conectando...</div> 
-    <ul id="eventos"> 
-      <li style="color:#64748B">Esperando eventos... (crea una sesión con Thunder Client)</li> 
-    </ul> 
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>StudySync — Dashboard</title>
+  <link rel="stylesheet" href="/app.css"/>
+</head>
 
-    <script> 
-      // Conectar automáticamente al servidor Socket.io
-      const socket = io(); 
+<body>
+<header>
+  <div class="container">
+    <h1>StudySync</h1>
 
-      socket.on('connect', () => { 
-        document.getElementById('status').textContent = '🟢 Conectado al servidor en tiempo real'; 
-        document.getElementById('status').className = 'conectado'; 
-      }); 
+    <div style="display:flex;align-items:center;gap:1rem;">
+      <span id="usuario-nombre" style="color:var(--muted)"></span>
+      <span id="ws-badge" class="badge">⬤ Conectando...</span>
+      <button class="btn btn-danger btn-sm" onclick="logout()">Salir</button>
+    </div>
+  </div>
+</header>
 
-      socket.on('disconnect', () => { 
-        document.getElementById('status').textContent = '🔴 Desconectado'; 
-        document.getElementById('status').className = 'desconectado'; 
-      }); 
+<main>
+<div class="container">
 
-      // Escuchar eventos retransmitidos desde Redis
-      socket.on('nuevo-evento', (evento) => { 
-        const lista = document.getElementById('eventos'); 
-        const item = document.createElement('li'); 
-        const hora = new Date(evento.timestamp).toLocaleTimeString(); 
+  <!-- CREAR SESIÓN -->
+  <div class="card">
+    <h2>Nueva sesión</h2>
 
-        item.innerHTML = ` 
-          <strong>${evento.canal}</strong>: ${evento.payload?.titulo || JSON.stringify(evento.payload)} 
-          <br><span class="hora">⏱ ${hora} · Socket ID: ${socket.id}</span> 
-        `; 
+    <div class="form-group">
+      <label>Título</label>
+      <input id="titulo" placeholder="Ej. Redis Pub/Sub"/>
+    </div>
 
-        // Insertar el más reciente arriba del todo
-        lista.insertBefore(item, lista.firstChild); 
-      }); 
-    </script> 
-</body> 
+    <div class="form-group">
+      <label>Materia</label>
+      <input id="materia" placeholder="Ej. Programación IV"/>
+    </div>
+
+    <div class="form-group">
+      <label>Fecha</label>
+      <input id="fechaHora" type="datetime-local"/>
+    </div>
+
+    <button class="btn btn-primary" onclick="crearSesion()">
+      Crear sesión
+    </button>
+
+    <div id="msg" class="msg"></div>
+  </div>
+
+  <!-- LISTA -->
+  <div class="card">
+    <h2>Sesiones</h2>
+    <ul id="lista-sesiones"></ul>
+  </div>
+
+  <!-- FEED -->
+  <div class="card">
+    <h2>Eventos en tiempo real</h2>
+    <ul id="feed"></ul>
+  </div>
+
+</div>
+</main>
+
+<script src="/socket.io/socket.io.js"></script>
+
+<script>
+const token = sessionStorage.getItem("token");
+const user  = JSON.parse(sessionStorage.getItem("usuario") || "null");
+
+if (!token) window.location.href = "/login.html";
+
+if (user) {
+  document.getElementById("usuario-nombre").textContent = "Hola, " + user.nombre;
+}
+
+// ─────────────────────────────
+// FETCH CORRECTO (IMPORTANTE)
+// ─────────────────────────────
+const API = {
+  headers() {
+    return {
+      "Content-Type": "application/json",
+      "Authorization": "Bearer " + token
+    };
+  },
+
+  async get(url) {
+    const res = await fetch(url, { headers: this.headers() });
+    return res.json();
+  },
+
+  async post(url, body) {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: this.headers(),
+      body: JSON.stringify(body)
+    });
+    return { ok: res.ok, data: await res.json() };
+  },
+
+  async delete(url) {
+    const res = await fetch(url, {
+      method: "DELETE",
+      headers: this.headers()
+    });
+    return res.ok;
+  }
+};
+
+// ─────────────────────────────
+// SOCKET
+// ─────────────────────────────
+const socket = io();
+
+socket.on("connect", () => {
+  const b = document.getElementById("ws-badge");
+  b.textContent = "🟢 Conectado";
+  b.classList.add("connected");
+});
+
+// usa evento genérico (según tu backend socketHandler)
+socket.on("sesiones:nueva", (data) => {
+  const feed = document.getElementById("feed");
+
+  const li = document.createElement("li");
+  li.textContent = `🆕 ${data.titulo} - ${data.materia}`;
+  feed.prepend(li);
+
+  cargarSesiones();
+});
+
+// ─────────────────────────────
+// CARGAR SESIONES (CORREGIDO)
+// ─────────────────────────────
+async function cargarSesiones() {
+  const data = await API.get("/api/sesiones");
+
+  const lista = document.getElementById("lista-sesiones");
+  lista.innerHTML = "";
+
+  if (!Array.isArray(data) || data.length === 0) {
+    lista.innerHTML = "<li>No hay sesiones</li>";
+    return;
+  }
+
+  data.forEach(s => {
+    const li = document.createElement("li");
+
+    li.innerHTML = `
+      <div>
+        <b>${s.titulo}</b><br>
+        <small>${s.materia || ""}</small>
+      </div>
+      <button class="btn btn-danger btn-sm" onclick="eliminar(${s.id})">
+        Eliminar
+      </button>
+    `;
+
+    lista.appendChild(li);
+  });
+}
+
+// ─────────────────────────────
+// CREAR SESIÓN
+// ─────────────────────────────
+async function crearSesion() {
+  const titulo = document.getElementById("titulo").value;
+
+  if (!titulo) return alert("Título requerido");
+
+  const { ok } = await API.post("/api/sesiones", {
+    titulo,
+    materia: document.getElementById("materia").value,
+    fechaHora: document.getElementById("fechaHora").value
+  });
+
+  if (ok) {
+    document.getElementById("titulo").value = "";
+    cargarSesiones();
+  }
+}
+
+// ─────────────────────────────
+// ELIMINAR
+// ─────────────────────────────
+async function eliminar(id) {
+  await API.delete(`/api/sesiones/${id}`);
+  cargarSesiones();
+}
+
+// ─────────────────────────────
+// LOGOUT
+// ─────────────────────────────
+function logout() {
+  sessionStorage.clear();
+  window.location.href = "/login.html";
+}
+
+cargarSesiones();
+</script>
+
+</body>
 </html>
